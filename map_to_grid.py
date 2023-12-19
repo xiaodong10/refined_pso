@@ -9,14 +9,11 @@ def latitude_longitude_to_grid(lat, lon, base_lat, base_lon, grid_size=0.000001)
     return grid_x, grid_y
 
 
-def transfer_data_grid(map_cvs_path):
-    pre_df = pd.read_csv(map_cvs_path)
+def transfer_data_grid(map_csv_path):
+    df = pd.read_csv(map_csv_path)
     # Replace -Inf with -200 
-    # df.replace([-np.inf], -200, inplace=True)
-    pre_df.replace("#NAME?", -200, inplace=True)
-    pre_df.to_csv('pre_heatmap_data.csv', index=False)
-
-    df = pd.read_csv('pre_heatmap_data.csv')
+    df.replace([-np.inf], -200, inplace=True)
+    df.replace("#NAME?", -200, inplace=True)
 
     base_lat = df['Latitude'].min()
     base_lon = df['Longitude'].min()
@@ -25,6 +22,8 @@ def transfer_data_grid(map_cvs_path):
     df['GridX'], df['GridY'] = zip(*df.apply(lambda row: latitude_longitude_to_grid(row['Latitude'], row['Longitude'], base_lat, base_lon), axis=1))
 
     grid_group = df[['GridX', 'GridY', 'Power']]
+    # max_power = grid_group['Power'].max()
+    # print(f"The signal largest power value is: {max_power}")
 
     reshape_df = grid_group.pivot('GridY', 'GridX', 'Power')
 
@@ -42,8 +41,8 @@ def plot_map(grid):
     plt.show()
 
 def main():
-    map_cvs_path = './CVS_files/pd_data.csv'
-    map_grid = transfer_data_grid(map_cvs_path)
+    map_csv_path = './CVS_files/pd_data.csv'
+    map_grid = transfer_data_grid(map_csv_path)
     plot_map(map_grid)
 
 if __name__ == "__main__":

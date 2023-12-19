@@ -61,7 +61,7 @@ def update(frame):
     ax.set_title(f'Step {frame + 1}')
 
 # Animation plot
-print(len(anchors_process))
+# print(len(anchors_process))
 
 ani = FuncAnimation(fig, update, frames=len(anchors_process), interval=200, blit=False)
 # cbar = fig.colorbar(scatter, ax=ax)

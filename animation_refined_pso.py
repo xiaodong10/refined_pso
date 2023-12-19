@@ -1,16 +1,13 @@
 import math
 import matplotlib.pyplot as plt
 import numpy as np
-import json
-import os
-import source_map_generator
 from matplotlib.animation import FuncAnimation
 from scipy.interpolate import griddata,Rbf
 from source_map_generator import generate_map,plot_map,plot_3d
 from map_to_grid import transfer_data_grid
 from plot_animation import plot_anchors_animation
 
-# map_cvs_path = './CVS_files/pd_data.csv'
+# map_csv_path = './csv_files/pd_data.csv'
 def get_anchor_value_by_position(grid, position):
     return grid[position[1]][position[0]]
 
@@ -179,8 +176,10 @@ def main():
     # plot_3d(grid)
 
     # monitor real environment
-    map_cvs_path = './CVS_files/pd_data.csv'
-    grid = transfer_data_grid(map_cvs_path)
+    # map_csv_path = './csv_files/pd_data.csv'
+    map_csv_path = './csv_files/map7.csv'
+    grid = transfer_data_grid(map_csv_path)
+    # print(np.shape(grid))
 
     inertia_w_max=0.9 # max=0.9 min = 0.4 by default
     inertia_w_min=0.4
@@ -191,9 +190,11 @@ def main():
     # Tc=5
     Sc =6
     min_distance_neighbor = 3
-    radius = 35
+    radius = 30
     max_retries = 10
     window_size = 3 # the historical data size 
+    signal_threshold = -27 # signal strength of locating the source
+    Found_signal_source = False # one partile find the source, this flag turn into True, end of collecting data
 
     # anchors_coords = [[82,85], [59,87],[70,112],[60,87],[65,120],[63,90],[67,99],[76,90],[61,108],[66,117],[64,80],[70,98],[78,95],[75,84]]
     # anchors_coords = [[82,95], [79,87],[34,60],[40,50],[67,90],[30,50],[50,30],[120,60],[170,70],[160,50]]
@@ -224,21 +225,19 @@ def main():
             trajectories[idx].append(anchor.position.copy())
             # Recond anchors positions in cur_cycle
             ans_p[cur_cycle].append(anchor.position.copy())
-
+            if anchor.value >= signal_threshold:
+                Found_signal_source = True
 
         anchors_p = ans_p[cur_cycle]
         # print(f"anchors_p={anchors_p}")
         cur_cycle += 1
+        if Found_signal_source:
+            break
 
 
     trajectories_value = [[grid[t[1]][t[0]] for t in node] for node in trajectories]
     trajectories = np.array(trajectories)
-    trajectories_value = np.array(trajectories_value)
-    print(f"trajectories{trajectories}")
-    print(f"trajectories.type{np.shape(trajectories)}")
-    print(f"trajectories_value{trajectories_value}")
-
-    
+    trajectories_value = np.array(trajectories_value)    
     plot_anchors_animation(grid, trajectories, trajectories_value,'plot_refined_pso_animation.gif')
    
 
