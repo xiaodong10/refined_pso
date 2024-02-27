@@ -9,10 +9,11 @@ from plot_animation import plot_anchors_animation
 
 # map_csv_path = './csv_files/pd_data.csv'
 def get_anchor_value_by_position(grid, position):
-    return grid[position[1]][position[0]]
+   
+    return grid[int(position[1]), int(position[0])]
 
 
-def choose_random_direction(num_direction):
+def choose_random_direction(num_direction=8):
     """Generate a direction vector based on num_direction possiable direction"""
     step_angle = 2 * np.pi / num_direction
     dirt_index = np.random.choice(num_direction)
@@ -72,6 +73,7 @@ class Anchor:
     
     def PSO_determine_v_direction(self, inertia_w_max, inertia_w_min, cognitive_c, social_c, cur_cycle, cycle_max, S_c):
         S = S_c*(np.exp(1-(cur_cycle/cycle_max)))
+        # S = S_c
         inertia_w = inertia_w_max - (inertia_w_max-inertia_w_min)/cycle_max*cur_cycle
 
         # rand_0 = np.random.uniform(0.5, 1.5)
@@ -81,13 +83,46 @@ class Anchor:
 
         d_v = inertia_w * rand_0 * self.step + cognitive_c * rand_1 * (self.previous_best_position - self.position) + social_c * rand_2 * (self.global_best_position - self.position)
         magnitude = np.linalg.norm(d_v)
-        if magnitude == 0:  # Avoid division by zero
-            norm_velocity = choose_random_direction(num_direction=8) 
+        
+
+        
+        if (self.value==-200 or self.global_best_value == -200) or magnitude == 0: # Avoid division by zero and encourage explore when -inf
+            norm_velocity = choose_random_direction(num_direction=8)
         else:
             norm_velocity = d_v/magnitude
         next_move = S*norm_velocity
         next_move_int = np.rint(next_move).astype(int)
         return d_v, next_move_int
+    
+
+    def PSO_determine_norm_v_direction(self, inertia_w_max, inertia_w_min, cognitive_c, social_c, cur_cycle, cycle_max, S_c):
+        S = S_c*(np.exp(1-(cur_cycle/cycle_max)))
+        # S = S_c
+        inertia_w = inertia_w_max - (inertia_w_max-inertia_w_min)/cycle_max*cur_cycle
+
+        # rand_0 = np.random.uniform(0.5, 1.5)
+        rand_0 = 1
+        rand_1 = np.random.uniform(0, 1)
+        rand_2 = np.random.uniform(0, 1)
+
+        dir_p_best = self.previous_best_position - self.position
+        norm_p = np.linalg.norm(dir_p_best)
+        dir_g_best = self.global_best_position - self.position
+        norm_g = np.linalg.norm(dir_g_best)
+
+        norm_p_best = dir_p_best/norm_p if norm_p != 0 else dir_p_best
+        norm_g_best = dir_g_best/norm_g if norm_g != 0 else dir_g_best
+
+        d_v = inertia_w * rand_0 * self.step + cognitive_c * rand_1 * norm_p_best + social_c * rand_2 * norm_g_best
+        magnitude = np.linalg.norm(d_v)
+
+        if (self.value==-200 or self.global_best_value == -200) or magnitude == 0: # Avoid division by zero and encourage explore when -inf
+            norm_velocity = choose_random_direction(num_direction=8)
+        else:
+            norm_velocity = d_v/magnitude
+        next_move = S*norm_velocity
+        next_move_int = np.rint(next_move).astype(int)
+        return norm_velocity, next_move_int
        
 
     def update_position(self, params, all_anchors,grid, min_distance=2.0, max_retries=10, window_size=3):
@@ -101,10 +136,11 @@ class Anchor:
         for _ in range(max_retries):
             # Problem of retries
     
-            self.step,next_move = self.PSO_determine_v_direction(*params)
+            self.step,next_move = self.PSO_determine_norm_v_direction(*params)
             new_position = self.position + next_move
             if 0 <= new_position[0] < grid.shape[1] and 0 <= new_position[1] < grid.shape[0] and not math.isnan(grid[new_position[1]][new_position[0]]):
                 # print(f"new_position{new_position}")
+
                 if not self.is_collision(new_position, all_anchors, min_distance):
                     self.position = new_position
                     self.value = grid[new_position[1]][new_position[0]] 
@@ -149,6 +185,7 @@ class Anchor:
         best_position = self.position.copy()
 
         for neighbor_position in latest_neighbors_positions:
+            # print(f"neighbor_position{neighbor_position}")
   
             neighbor_value = get_anchor_value_by_position(grid, neighbor_position)
             
@@ -177,7 +214,7 @@ def main():
 
     # monitor real environment
     # map_csv_path = './csv_files/pd_data.csv'
-    map_csv_path = './csv_files/map7.csv'
+    map_csv_path = './campus_parking_lot.csv'
     grid = transfer_data_grid(map_csv_path)
     # print(np.shape(grid))
 
@@ -186,25 +223,25 @@ def main():
     cognitive_c=2 #cognitive_c,social_c=2 by default
     social_c=2
     cur_cycle=1
-    cycle_max=50
+    cycle_max=100
     # Tc=5
     Sc =6
     min_distance_neighbor = 3
-    radius = 30
+    radius = 50
     max_retries = 10
     window_size = 3 # the historical data size 
     signal_threshold = -27 # signal strength of locating the source
     Found_signal_source = False # one partile find the source, this flag turn into True, end of collecting data
 
-    # anchors_coords = [[82,85], [59,87],[70,112],[60,87],[65,120],[63,90],[67,99],[76,90],[61,108],[66,117],[64,80],[70,98],[78,95],[75,84]]
-    # anchors_coords = [[82,95], [79,87],[34,60],[40,50],[67,90],[30,50],[50,30],[120,60],[170,70],[160,50]]
+    anchors_coords = [[182,285], [259,187],[70,112],[60,287],[465,320],[363,290],[267,399],[476,190],[261,408],[466,217],[364,280],[170,498],[78,495],[75,384]]
+    # anchors_coords = [[82,95], [79,87],[34,60],[40,50],[67,90],[30,50],[50,30],[120,60],[170,70],[160,50]
     # anchors_coords = [[20,60],[90,70],[60,50],[70,40],[90,30]]
     # anchors_coords = [[60,30],[100,90],[70,80]]
     # anchors_coords = [[160,120],[150,160],[80,50],[70,90],[68,80],[50,140]]
     # anchors_coords = [[200,122],[170,200],[93,189],[123,60],[173,38],[173,38],[200,42]] # good
     # anchors_coords = [[193,106],[160,210],[215,126],[155,170],[100,200],[105,195],[150,160]] #'C:/Users/xdwun/Research/Codes_work/AI_army/anchors_animation.gif
     # anchors_coords = [[193,106],[160,210],[215,126],[171,105],[146,60]]
-    anchors_coords = [[160,210],[215,126],[171,105],[56,200],[92,180],[85,205]]
+    # anchors_coords = [[160,210],[215,126],[171,105],[56,200],[92,180],[85,205]]
 
     # anchors_coords = [[150,60],[160,100],[90,120],[80,70]]
 
