@@ -30,7 +30,7 @@ def plot_anchors_animation(grid, trajectories, trajectories_value, plot_name):
         except Exception as e:
             print(f"Error updating frame {frame}: {e}")
 
-    ani = FuncAnimation(fig, update, frames=len(trajectories[0]), interval=200, blit=False)
+    ani = FuncAnimation(fig, update, frames=len(trajectories[0]), interval=500, blit=False)
 
 
     ani_name = os.path.join("Plots", plot_name)

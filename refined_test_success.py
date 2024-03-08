@@ -24,6 +24,15 @@ def generate_random_coordinates(num_coordinates, grid_map):
 
     return coordinates
 
+def calculate_total_steps(num_steps, sc, cyc_max):
+    
+    total_steps = 0
+    for iteration in range(1, int(num_steps) + 1):
+        step = sc * (np.exp(1 - (iteration / cyc_max)))
+        total_steps += step
+       
+    return total_steps
+
 def Recond_trajectories_value(parameters,grid,num_particles, signal_threshold):
     
 
@@ -116,7 +125,7 @@ def test_algorithm(parameters,times_to_test, grid, num_particles, threshold):
     success_rate = success_count / times_to_test
 
     successful_steps = his_steps[his_steps != -1]  # Filter out unsuccessful steps
-    mean_step = np.mean(successful_steps) if successful_steps.size > 0 else None
+    mean_step = np.mean(successful_steps) if successful_steps.size > 0 else 0
     std = np.std(successful_steps)
     # print(f"successful_steps = {len(successful_steps)}")
     # print(f"standard_deviation{std}")
@@ -126,10 +135,10 @@ def test_algorithm(parameters,times_to_test, grid, num_particles, threshold):
 def main():
 
     times_to_test = 1000
-    # csv_map = './ts_map3.csv'
-    # csv_map = './csv_files/poster_map1.csv'
     # file_csv_maps = ['./csv_files/CampusParkingLot.csv','./csv_files/CampusStreet.csv','./csv_files/DentonDowntown.csv']
-    file_csv_maps = ['./csv_files/GaussianCampusStreet.csv']
+
+    file_csv_maps = ['./csv_files/GaussianCampusParkingLot.csv', './csv_files/GaussianCampusStreet.csv','./csv_files/GaussianDentonDowntown.csv']
+    heatmaps_files = []
     inertia_w_max = 0.9
     inertia_w_min = 0.4
     cognitive_c = 2.05
@@ -141,31 +150,41 @@ def main():
     max_retries =10
     window_size = 3
 
-    Sc_values = [4, 6, 8, 10]  # Different values of Sc to test
-    results = {sc: {'success_rates': [], 'average_steps': []} for sc in Sc_values}
+    Sc_values = [5,10,15,20,25,30,35,40,45,50]  # Different values of Sc to test
+    results = {sc: {'success_rates': [], 'average_steps': [], 'total_distance': []} for sc in Sc_values}
+
+    for i in range(len(file_csv_maps)):
+        processed_map_file = transfer_data_grid(file_csv_maps[i])
+       
+        heatmaps_files.append(processed_map_file)
+    print(f"map{heatmaps_files}")
+
 
     for Sc in Sc_values:
-        array_success_rates = [[] for _ in file_csv_maps]
-        average_steps = [[] for _ in file_csv_maps]   
-        for i in range(len(file_csv_maps)):
+        array_success_rates = [[] for _ in heatmaps_files]
+        average_steps = [[] for _ in heatmaps_files] 
+        total_distance = [[] for _ in heatmaps_files] 
+        for i in range(len(heatmaps_files)):
             # num_particles = [5,10,15,20,25]
             num_particles = [15,20]
-            grid = transfer_data_grid(file_csv_maps[i])
-            grid = grid[100:len(grid)-100, 100:len(grid)-100]
-
+            grid = np.load(heatmaps_files[i])
             for n_p in num_particles:
-                threshold = -35# max is -30db 
+                threshold = -33# max is -30db 
                 
                 para = [inertia_w_max,inertia_w_min,cognitive_c,social_c,cycle_max,Sc,min_distance_neighbor,radius,max_retries,window_size]
                 success_rate,av_step = test_algorithm(para,times_to_test, grid, n_p, threshold)
+                total_dis = calculate_total_steps(num_steps = av_step, sc=Sc, cyc_max=cycle_max)
+                
                 array_success_rates[i].append(success_rate)
                 average_steps[i].append(av_step)
+                total_distance[i].append(total_dis)
                 # print(f"av_step{av_step}")
         
         print(f"array_success_rates {array_success_rates}")
         print(f"average_steps {average_steps}")
         results[Sc]['success_rates'] = array_success_rates
         results[Sc]['average_steps'] = average_steps
+        results[Sc]['total_distance'] = total_distance
 
     
         # Print the results
@@ -179,62 +198,55 @@ def main():
             print(f"  CSV file {i}: {avg_step}")
         print("\n")  # New line for better readability
 
-    # plot the success rate
-    # markers = ['o', 's', '^']
-    # line_styles = ['-', '--', ':']
-    # for i, success_rates in enumerate(array_success_rates):
-    #     marker = markers[i % len(markers)]  # Cycle through markers
-    #     line_style = line_styles[i % len(line_styles)] 
-    #     plt.plot(num_particles, success_rates, marker=marker, linestyle=line_style, label=f'Map {i + 1}')
-
-    # # Add labels and legend
-    # plt.xlabel('Number of Particles')
-    # plt.ylabel('Success Rate')
-    # plt.legend(loc='best')  # Add a legend in the best location
-    # plt.grid(True)
-
-    # # Show the plot
-    # plt.title('Success Rate for Different Maps and Particles')
-    # plt.show()
-
-    #  # plot average steps
-    # for i, success_rates in enumerate(average_steps):
-    #     marker = markers[i % len(markers)]  # Cycle through markers
-    #     line_style = line_styles[i % len(line_styles)] 
-    #     plt.plot(num_particles, success_rates, marker=marker, linestyle=line_style, label=f'Map {i + 1}')
-
-    # # Add labels and legend
-    # plt.xlabel('Number of Particles')
-    # plt.ylabel('average steps')
-    # plt.legend(loc='best')  # Add a legend in the best location
-    # plt.grid(True)
-
-    # # Show the plot
-    # plt.title('Average for Different Maps and Particles')
-    # plt.show()
-
+   
     selected_map_index = 0  # Example: 0 for the first map
     selected_num_particles_index = 0  # Example: 0 for the first num_particles value
 
     # Plotting success rates for different Sc values for the selected map
-    plt.figure(figsize=(10, 6))
-    success_rates = [results[sc]['success_rates'][selected_map_index][selected_num_particles_index] for sc in Sc_values]
-    plt.plot(Sc_values, success_rates, marker='o', linestyle='-')
+    for i, map_name in enumerate(file_csv_maps):
+   
+        success_rates_for_map = [results[sc]['success_rates'][i][selected_num_particles_index] for sc in Sc_values]
+        plt.plot(Sc_values, success_rates_for_map, marker='o', linestyle='-', label=f'Map: {map_name}')
+
+    # plt.figure(figsize=(10, 6))
+    # success_rates = [results[sc]['success_rates'][selected_map_index][selected_num_particles_index] for sc in Sc_values]
+    # plt.plot(Sc_values, success_rates, marker='o', linestyle='-')
     plt.xlabel('Sc Value')
     plt.ylabel('Success Rate')
-    plt.title(f'Success Rate for Different Sc Values (Map: {file_csv_maps[selected_map_index]}, Particles: {num_particles[selected_num_particles_index]})')
+    plt.title(f'Impact of Scale Factor (Particles: {num_particles[selected_num_particles_index]})')
     plt.grid(True)
+    plt.legend() 
     plt.show()
 
     # Plotting average steps for different Sc values for the selected map
-    plt.figure(figsize=(10, 6))
-    average_steps = [results[sc]['average_steps'][selected_map_index][selected_num_particles_index] for sc in Sc_values]
-    plt.plot(Sc_values, average_steps, marker='o', linestyle='-')
+    for i, map_name in enumerate(file_csv_maps):
+   
+        average_steps = [results[sc]['average_steps'][i][selected_num_particles_index] for sc in Sc_values]
+        plt.plot(Sc_values, average_steps, marker='o', linestyle='-', label=f'Map: {map_name}')
+    # plt.figure(figsize=(10, 6))
+    # average_steps = [results[sc]['average_steps'][selected_map_index][selected_num_particles_index] for sc in Sc_values]
+    # plt.plot(Sc_values, average_steps, marker='o', linestyle='-')
     plt.xlabel('Sc Value')
-    plt.ylabel('Average Steps')
-    plt.title(f'Average Steps for Different Sc Values (Map: {file_csv_maps[selected_map_index]}, Particles: {num_particles[selected_num_particles_index]})')
+    plt.ylabel('Average Number of Steps')
+    plt.title(f'Impact of Scale Factor (Particles: {num_particles[selected_num_particles_index]})')
     plt.grid(True)
+    plt.legend() 
     plt.show()
+
+    for i, map_name in enumerate(file_csv_maps):
+   
+        total_distance = [results[sc]['total_distance'][i][selected_num_particles_index] for sc in Sc_values]
+        plt.plot(Sc_values, total_distance, marker='o', linestyle='-', label=f'Map: {map_name}')
+    # plt.figure(figsize=(10, 6))
+    # total_distance = [results[sc]['total_distance'][selected_map_index][selected_num_particles_index] for sc in Sc_values]
+    # plt.plot(Sc_values, total_distance, marker='o', linestyle='-')
+    plt.xlabel('Sc Value')
+    plt.ylabel('Distance Traveled')
+    plt.title(f'Impact of Scale Factor (Particles: {num_particles[selected_num_particles_index]})')
+    plt.grid(True)
+    plt.legend() 
+    plt.show()
+    
 
 
 

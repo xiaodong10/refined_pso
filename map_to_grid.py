@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
 
 def latitude_longitude_to_grid(lat, lon, base_lat, base_lon, grid_size=0.000001):
     grid_x = int((lat - base_lat) / grid_size)
@@ -9,7 +9,8 @@ def latitude_longitude_to_grid(lat, lon, base_lat, base_lon, grid_size=0.000001)
     return grid_x, grid_y
 
 
-def transfer_data_grid(map_csv_path):
+def transfer_data_grid(map_csv_path,output_dir='./csv_files'):
+    "transform the grid and keep the grid [100:-100]"
     df = pd.read_csv(map_csv_path)
     df.round(8)
 
@@ -32,9 +33,13 @@ def transfer_data_grid(map_csv_path):
 
 
     array_2d = reshape_df.to_numpy()
-    # print(f"array shape{array_2d.size}")
-    # print(f"array {array_2d[1][390]}")
-    return array_2d
+    # Generate output file path
+    output_file_path = os.path.join(output_dir, os.path.basename(map_csv_path).replace('.csv', '_grid.npy'))
+
+    # Save array to a file
+    np.save(output_file_path, array_2d[100:-100, 100:-100])  # Adjusted as per your cropping requirement
+
+    return output_file_path
 
 def plot_map(grid):
         
